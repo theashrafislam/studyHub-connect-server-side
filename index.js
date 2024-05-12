@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion, MongoAWSError } = require('mongodb');
+const { MongoClient, ServerApiVersion, MongoAWSError, ObjectId } = require('mongodb');
 const app = express();
 const cors = require('cors');
 require('dotenv').config()
@@ -39,6 +39,13 @@ async function run() {
 
     app.get("/all-assignment", async(req, res) => {
         const result = await assignemntCollection.find().toArray();
+        res.send(result)
+    })
+
+    app.delete("/all-assignment/:id", async(req, res) => {
+        const id = req.params.id;
+        const query = {_id: new ObjectId(id)}
+        const result = await assignemntCollection.deleteOne(query);
         res.send(result)
     })
 
