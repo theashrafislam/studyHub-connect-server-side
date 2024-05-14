@@ -103,17 +103,40 @@ async function run() {
             res.send(result)
         })
 
+        app.get("/submitted-assignment/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await submittedAssignmentCollection.findOne(query);
+            res.send(result);
+        });
+
         app.get("/submitted-assignment/:email", async (req, res) => {
             const email = req.params.email;
             const query = { userEmail: email }
-            console.log(query);
             const result = await submittedAssignmentCollection.find(query).toArray();
             res.send(result)
         })
 
-        app.get("/submitted-assignment", async(req, res) => {
-            const query = {submissionStatus: 'Pending'}
+        app.get("/submitted-assignment", async (req, res) => {
+            const query = { submissionStatus: 'Pending' }
             const result = await submittedAssignmentCollection.find(query).toArray();
+            res.send(result)
+        })
+
+        app.put("/submitted-assignment/:id", async (req, res) => {
+            const id = req.params.id;
+            const addedData = req.body;
+            const submissionStatus = "Completed";
+            const query = { _id: new ObjectId(id) }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    mark: addedData.mark,
+                    feedback: addedData.feedback,
+                    submissionStatus: submissionStatus
+                },
+            };
+            const result = await submittedAssignmentCollection.updateOne(query, updateDoc, options);
             res.send(result)
         })
 
