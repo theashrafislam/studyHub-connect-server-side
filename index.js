@@ -2,13 +2,37 @@ const express = require('express');
 const { MongoClient, ServerApiVersion, MongoAWSError, ObjectId } = require('mongodb');
 const app = express();
 const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser')
 const cors = require('cors');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
 //middleware
-app.use(express.json())
-app.use(cors())
+app.use(cors({
+    origin: [
+        'http://localhost:5173'
+    ],
+    credentials: true
+}));
+app.use(express.json());
+app.use(cookieParser())
+
+//self middlewres
+const logger = (req, res, next) => {
+    console.log('log info: ', req.method, req.url);
+    next();
+}
+const verifyToken = (req, res, next) => {
+    const token = req?.cookies?.token;
+    // console.log('token in the middleware', token);
+    jwt.verify(token, process.env.ACCESS_SECRET_TOKEN, (err, decoded) => {
+        if(err) {
+            return res.status(401).send({message: 'Unauthorized access'})
+        }
+        req.user = decoded;
+        next();
+    })
+}
 
 
 
@@ -25,6 +49,7 @@ const client = new MongoClient(uri, {
     }
 });
 
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -34,11 +59,20 @@ async function run() {
         const submittedAssignmentCollection = client.db('studyHub').collection('submittedAssignment')
 
         //auth related api
-        app.post("http://localhost:5000/jwt", (req, res) => {
+        app.post("/jwt", logger,  (req, res) => {
             const user = req.body;
-            console.log('user for token', user);
+            // console.log('user for token', user);
             const token = jwt.sign(user, process.env.ACCESS_SECRET_TOKEN, {expiresIn: '1h'});
-            res.send({token})
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: true
+            }).send({success: true})
+        })
+
+        app.post("/logout", async(req, res) => {
+            const user = req.body;
+            console.log('logout:', user);
+            res.clearCookie('token', {maxAge: 0}).send({success: true})
         })
 
         //service related api
@@ -72,7 +106,10 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/all-assignment/:id", async (req, res) => {
+        app.get("/all-assignment/:id", verifyToken, async (req, res) => {
+            if(req.query.email !== req.user.email){
+                return res.status(403).send({message: 'forbidden access'})
+            }
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await assignemntCollection.findOne(query);
@@ -113,21 +150,31 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/submitted-assignment/id/:id", async (req, res) => {
+        app.get("/submitted-assignment/id/:id", verifyToken, async (req, res) => {
             const id = req.params.id;
+            if(req.query.email !== req.user.email){
+                return res.status(403).send({message: 'forbidden access'})
+            }
             const query = { _id: new ObjectId(id) };
             const result = await submittedAssignmentCollection.findOne(query);
             res.send(result);
         });
 
-        app.get("/submitted-assignment/email/:email", async (req, res) => {
+        app.get("/submitted-assignment/email/:email", verifyToken, async (req, res) => {
+            if(req.query.email !== req.user.email){
+                return res.status(403).send({message: 'forbidden access'})
+            }
             const email = req.params.email;
             const query = { userEmail: email }
             const result = await submittedAssignmentCollection.find(query).toArray();
             res.send(result)
         })
 
-        app.get("/submitted-assignment", async (req, res) => {
+        app.get("/submitted-assignment", verifyToken, async (req, res) => {
+            if(req.query.email !== req.user.email){
+                return res.status(403).send({message: 'forbidden access'})
+            }
+
             const query = { submissionStatus: 'Pending' }
             const result = await submittedAssignmentCollection.find(query).toArray();
             res.send(result)
