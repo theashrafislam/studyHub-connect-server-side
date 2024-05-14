@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient, ServerApiVersion, MongoAWSError, ObjectId } = require('mongodb');
 const app = express();
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
@@ -32,6 +33,15 @@ async function run() {
         const assignemntCollection = client.db('studyHub').collection('assignment')
         const submittedAssignmentCollection = client.db('studyHub').collection('submittedAssignment')
 
+        //auth related api
+        app.post("http://localhost:5000/jwt", (req, res) => {
+            const user = req.body;
+            console.log('user for token', user);
+            const token = jwt.sign(user, process.env.ACCESS_SECRET_TOKEN, {expiresIn: '1h'});
+            res.send({token})
+        })
+
+        //service related api
         app.post("/create-assignment", async (req, res) => {
             const assignemt = req.body;
             const result = await assignemntCollection.insertOne(assignemt);
@@ -103,14 +113,14 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/submitted-assignment/:id", async (req, res) => {
+        app.get("/submitted-assignment/id/:id", async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await submittedAssignmentCollection.findOne(query);
             res.send(result);
         });
 
-        app.get("/submitted-assignment/:email", async (req, res) => {
+        app.get("/submitted-assignment/email/:email", async (req, res) => {
             const email = req.params.email;
             const query = { userEmail: email }
             const result = await submittedAssignmentCollection.find(query).toArray();
