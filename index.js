@@ -10,7 +10,9 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(cors({
     origin: [
-        'http://localhost:5173'
+        'http://localhost:5173',
+        'https://studyhub-connect-1f372.web.app',
+        'https://studyhub-connect-1f372.firebaseapp.com'
     ],
     credentials: true
 }));
@@ -26,8 +28,8 @@ const verifyToken = (req, res, next) => {
     const token = req?.cookies?.token;
     // console.log('token in the middleware', token);
     jwt.verify(token, process.env.ACCESS_SECRET_TOKEN, (err, decoded) => {
-        if(err) {
-            return res.status(401).send({message: 'Unauthorized access'})
+        if (err) {
+            return res.status(401).send({ message: 'Unauthorized access' })
         }
         req.user = decoded;
         next();
@@ -59,20 +61,25 @@ async function run() {
         const submittedAssignmentCollection = client.db('studyHub').collection('submittedAssignment')
 
         //auth related api
-        app.post("/jwt", logger,  (req, res) => {
+        app.post("/jwt", logger, (req, res) => {
             const user = req.body;
             // console.log('user for token', user);
-            const token = jwt.sign(user, process.env.ACCESS_SECRET_TOKEN, {expiresIn: '1h'});
+            const token = jwt.sign(user, process.env.ACCESS_SECRET_TOKEN, { expiresIn: '1h' });
             res.cookie('token', token, {
                 httpOnly: true,
-                secure: true
-            }).send({success: true})
+                secure: true,
+                sameSite: 'none'
+            }).send({ success: true })
         })
 
-        app.post("/logout", async(req, res) => {
+        app.post("/logout", async (req, res) => {
             const user = req.body;
             console.log('logout:', user);
-            res.clearCookie('token', {maxAge: 0}).send({success: true})
+            res.clearCookie('token', { 
+                maxAge: 0, 
+                httpOnly: true,
+                secure: true,
+                sameSite: 'none' }).send({ success: true })
         })
 
         //service related api
@@ -107,8 +114,8 @@ async function run() {
         })
 
         app.get("/all-assignment/:id", verifyToken, async (req, res) => {
-            if(req.query.email !== req.user.email){
-                return res.status(403).send({message: 'forbidden access'})
+            if (req.query.email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
             }
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -152,8 +159,8 @@ async function run() {
 
         app.get("/submitted-assignment/id/:id", verifyToken, async (req, res) => {
             const id = req.params.id;
-            if(req.query.email !== req.user.email){
-                return res.status(403).send({message: 'forbidden access'})
+            if (req.query.email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
             }
             const query = { _id: new ObjectId(id) };
             const result = await submittedAssignmentCollection.findOne(query);
@@ -161,8 +168,8 @@ async function run() {
         });
 
         app.get("/submitted-assignment/email/:email", verifyToken, async (req, res) => {
-            if(req.query.email !== req.user.email){
-                return res.status(403).send({message: 'forbidden access'})
+            if (req.query.email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
             }
             const email = req.params.email;
             const query = { userEmail: email }
@@ -171,8 +178,8 @@ async function run() {
         })
 
         app.get("/submitted-assignment", verifyToken, async (req, res) => {
-            if(req.query.email !== req.user.email){
-                return res.status(403).send({message: 'forbidden access'})
+            if (req.query.email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
             }
 
             const query = { submissionStatus: 'Pending' }
